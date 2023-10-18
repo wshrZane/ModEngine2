@@ -35,8 +35,9 @@ See the list below for information on games that currently have support in Mod E
 
 - [x] Dark Souls 3
 - [x] Elden Ring
+- [x] Armored Core 6
 - [ ] Dark Souls 2: SOTF
-- [ ] Dark Souls Remastered
+- [x] Dark Souls Remastered
 - [ ] Sekiro: Shadows Die Twice
 - [ ] Bloodborne
 
@@ -75,7 +76,7 @@ To this end, we offer functionality to make the reversing process easier:
 
 ## Features
 
-Mod Engine 2 covers all existing functionality from the original Mod Engine for Dark Souls but introduces some important new features that mod authors should be aware of. 
+Mod Engine 2 covers all existing functionality from the original Mod Engine for Dark Souls but introduces some important new features that mod authors should be aware of.
 
 ### Mod Launcher
 
@@ -90,7 +91,7 @@ This simple command-line application has 3 main objectives.
 2. Start the game with modengine2.dll already loaded
 3. Pass information to modengine2.dll about the configuration the user launched the game with
 
-This allows us to keep mods, modengine, and the game itself completely detached. 
+This allows us to keep mods, modengine, and the game itself completely detached.
 As a result, running the game directly from Steam will always result in a vanilla instance being launched.
 
 ### Extension/plugin support
