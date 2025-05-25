@@ -38,7 +38,7 @@ See the list below for information on games that currently have support in Mod E
 - [ ] Dark Souls 2: SOTF
 - [ ] Dark Souls Remastered
 - [ ] Sekiro: Shadows Die Twice
-- [ ] Bloodborne
+
 
 
 ## What are the differences?
