@@ -33,8 +33,8 @@ mods = [
 
 See the list below for information on games that currently have support in Mod Engine 2.
 
-- [x] Dark Souls 3
 - [x] Elden Ring
+- [x] Dark Souls 3
 - [ ] Dark Souls 2: SOTF
 - [x] Dark Souls Remastered
 - [ ] Sekiro: Shadows Die Twice
