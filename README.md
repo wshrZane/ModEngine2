@@ -36,7 +36,7 @@ See the list below for information on games that currently have support in Mod E
 - [x] Dark Souls 3
 - [x] Elden Ring
 - [ ] Dark Souls 2: SOTF
-- [ ] Dark Souls Remastered
+- [x] Dark Souls Remastered
 - [ ] Sekiro: Shadows Die Twice
 
 
