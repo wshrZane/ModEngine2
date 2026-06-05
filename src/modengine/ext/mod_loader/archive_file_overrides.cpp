@@ -9,7 +9,7 @@
 #include <concurrent_unordered_set.h>
 #include <concurrent_unordered_map.h>
 #include <concurrent_vector.h>
-
+#include <cwctype>
 #include <spdlog/spdlog.h>
 
 #include "gametypes/dantelion/dlstring.h"
@@ -47,15 +47,19 @@ concurrency::concurrent_unordered_map<std::wstring, std::optional<std::filesyste
 
 Hook<fpCreateFileW> hooked_CreateFileW;
 
-Hook<decltype(&virtual_to_archive_path_ds3)> hooked_virtual_to_archive_path_ds3;
-Hook<decltype(&virtual_to_archive_path_ds2)> hooked_virtual_to_archive_path_ds2;
-Hook<decltype(&virtual_to_archive_path_sekiro)> hooked_virtual_to_archive_path_sekiro;
+ScannedHook<decltype(&virtual_to_archive_path_ds3)> hooked_virtual_to_archive_path_ds3;
+ScannedHook<decltype(&virtual_to_archive_path_ds2)> hooked_virtual_to_archive_path_ds2;
+//Hook<decltype(&virtual_to_archive_path_sekiro)> hooked_virtual_to_archive_path_sekiro;
+ScannedHook<decltype(&virtual_to_archive_path_sekiro)> hooked_virtual_to_archive_path_sekiro;
 ScannedHook<decltype(&virtual_to_archive_path_eldenring)> hooked_virtual_to_archive_path_eldenring;
+
+ScannedHook<decltype(&virtual_to_archive_path_eldenring)> hooked_virtual_to_archive_path_nightreign;
+
 concurrency::concurrent_vector<std::wstring> hooked_file_roots;
 
 using namespace spdlog;
 
-
+/* 
 std::optional<fs::path> find_override_file(const fs::path& game_path)
 {
     for (const auto& root : hooked_file_roots) {
@@ -69,21 +73,83 @@ std::optional<fs::path> find_override_file(const fs::path& game_path)
 
     return {};
 }
+ */
 
+// =========================================================================
+concurrency::concurrent_unordered_map<std::wstring, fs::path> g_mod_file_cache;
+
+
+std::wstring normalize_path_for_cache(const fs::path& path) {
+    std::wstring str = path.lexically_normal().wstring();
+    
+    std::transform(str.begin(), str.end(), str.begin(), ::towlower);
+ 
+    std::replace(str.begin(), str.end(), L'\\', L'/');
+    
+   
+    if (str.length() >= 2 && str.substr(0, 2) == L"./") {
+        str = str.substr(2);
+    }
+    if (!str.empty() && str[0] == L'/') {
+        str = str.substr(1);
+    }
+    return str;
+}
+
+
+void build_mod_file_cache(const fs::path& mod_dir) {
+    if (!fs::exists(mod_dir) || !fs::is_directory(mod_dir)) return;
+
+    info(L"Building ultra-fast file cache for mod directory: {}", mod_dir.wstring());
+
+    try {
+        
+        for (auto it = fs::recursive_directory_iterator(mod_dir, fs::directory_options::skip_permission_denied); 
+             it != fs::recursive_directory_iterator(); ++it) {
+            
+            if (it->is_regular_file()) {
+                auto rel_path = fs::relative(it->path(), mod_dir);
+                auto cache_key = normalize_path_for_cache(rel_path);
+
+                g_mod_file_cache[cache_key] = it->path();
+            }
+        }
+    } catch (const std::exception&) {
+        warn(L"Exception occurred while building mod cache. Some files might be missing.");
+    }
+}
+
+std::optional<fs::path> find_override_file(const fs::path& game_path)
+{
+    auto cache_key = normalize_path_for_cache(game_path);
+    auto it = g_mod_file_cache.find(cache_key);
+    if (it != g_mod_file_cache.end()) {
+        return it->second;
+    }
+
+    return std::nullopt; 
+}
+// =========================================================================
 /* Check if the given path is an archive reference and replaces
  i.e. "data1:/some/path" with ".//////some/path" which has the
  effect of causing the game to load a file from the local file
  system instead of an archive.*/
+ /* 
 void process_archive_path(wchar_t* raw_path, size_t raw_path_len)
 {
-    /* clang-format off */
+    
+    
     static auto archive_file_pattern = std::wregex(
         L"("
         "data.:\\/"   // References to main data archives (data1:/ etc)
         "|gamedata."  // References to DS2 data archives
         "|game_....." // References to DS3 DLC archives
         ").+");
-    /* clang-format on */
+    
+ 
+
+
+
 
     std::wstring path(raw_path, raw_path_len);
     debug(L"Checking archive path {}", path);
@@ -130,6 +196,49 @@ void process_archive_path(wchar_t* raw_path, size_t raw_path_len)
         debug(L"Replaced path with {}", replaced);
     }
 }
+ */
+inline size_t fast_match_archive_prefix(std::wstring_view path) {
+    if (path.length() < 7) return 0; 
+
+
+    if (path.substr(0, 4) == L"data" && path[5] == L':' && path[6] == L'/') {
+        return 7;
+    }
+
+    if (path.length() >= 9 && path.substr(0, 8) == L"gamedata") {
+        return 9;
+    }
+
+    if (path.length() >= 10 && path.substr(0, 5) == L"game_") {
+        return 10;
+    }
+    return 0;
+}
+void process_archive_path(wchar_t* raw_path, size_t raw_path_len)
+{
+    std::wstring_view path_view(raw_path, raw_path_len);
+    size_t prefix_len = fast_match_archive_prefix(path_view);
+    if (prefix_len == 0) {
+        return; 
+    }
+    std::wstring_view rel_path_view = path_view.substr(prefix_len);
+    std::wstring cache_key(rel_path_view);
+    std::transform(cache_key.begin(), cache_key.end(), cache_key.begin(), ::towlower);
+    std::replace(cache_key.begin(), cache_key.end(), L'\\', L'/');
+    while(!cache_key.empty() && cache_key[0] == L'/') {
+        cache_key.erase(0, 1);
+    }
+    auto it = g_mod_file_cache.find(cache_key);
+    if (it == g_mod_file_cache.end()) {
+        return; 
+    }
+    raw_path[0] = L'.';
+    for (size_t i = 1; i < prefix_len && i < raw_path_len; i++) {
+        raw_path[i] = L'/';
+    }
+
+}
+
 
 bool path_contains(const fs::path& root, const fs::path& filepath)
 {
@@ -151,7 +260,7 @@ HANDLE WINAPI tCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwSh
 {
     if (lpFileName != nullptr) {
         trace(L"Looking for {}", std::wstring(lpFileName));
-
+        
         auto override_file_opt = file_override_paths.find(std::wstring(lpFileName));
         std::optional<fs::path> override_path = {};
         if (override_file_opt != file_override_paths.end()) {
@@ -214,6 +323,10 @@ void* __cdecl virtual_to_archive_path_ds3(DLString<modengine::GameType::DS3, wch
 
 void* __cdecl virtual_to_archive_path_ds2(LPVOID p1, dlstring_t* path)
 {
+    
+    if (path != nullptr && path->string != nullptr) {
+        process_archive_path(path->string, path->length);
+    }
     return hooked_virtual_to_archive_path_ds2.original(p1, path);
 }
 
@@ -221,12 +334,13 @@ void* __cdecl virtual_to_archive_path_sekiro(DLString<modengine::GameType::SEKIR
 {
     auto res = static_cast<DLString<modengine::GameType::SEKIRO, wchar_t>*>(hooked_virtual_to_archive_path_sekiro.original(path, p2, p3, p4, p5, p6));
 
-     if (res != nullptr) {
+    if (res != nullptr) {
         process_archive_path(res->str(), res->length);
     }
 
     return static_cast<void*>(res);
 }
+
 
 void* __cdecl virtual_to_archive_path_eldenring(DLString<modengine::GameType::SEKIRO, wchar_t>* path, UINT64 p2, UINT64 p3, UINT64 p4, UINT64 p5, UINT64 p6)
 {
@@ -238,5 +352,19 @@ void* __cdecl virtual_to_archive_path_eldenring(DLString<modengine::GameType::SE
 
     return res;
 }
+
+void* __cdecl virtual_to_archive_path_nightreign(DLString<modengine::GameType::SEKIRO, wchar_t>* path, UINT64 p2, UINT64 p3, UINT64 p4, UINT64 p5, UINT64 p6)
+{
+    
+    auto res = static_cast<DLString<modengine::GameType::SEKIRO, wchar_t>*>(hooked_virtual_to_archive_path_nightreign.original(path, p2, p3, p4, p5, p6));
+
+    if (res != nullptr) {
+        process_archive_path(res->str(), res->length);
+    }
+
+    return static_cast<void*>(res);
+}
+
+
 
 }

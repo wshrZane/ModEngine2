@@ -102,5 +102,7 @@ void* __cdecl ak_file_location_resolver_open(UINT64 p1, wchar_t* path, AKOpenMod
     auto override_path_string = override.value().wstring();
     return hooked_ak_file_location_resolver_open.original(p1, override_path_string.data(), AKOpenMode::READ, p4, p5, p6);
 }
+ 
+
 
 }
