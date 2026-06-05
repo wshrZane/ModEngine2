@@ -1,8 +1,7 @@
 
 # Mod Engine 2
 
-> [!IMPORTANT]
-> Development on Mod Engine 2 is discontinued. Any future work will be done on [me3](https://github.com/garyttierney/me3).
+>Long may the me2 shine ! 
 
 Mod Engine 2 is a ground up rewrite of Mod Engine, a runtime code patching and injection library used for adding modding functionality to the Souls games by FROM Software.
 
@@ -40,9 +39,10 @@ See the list below for information on games that currently have support in Mod E
 
 - [x] Dark Souls 3
 - [x] Elden Ring
-- [ ] Dark Souls 2: SOTF
-- [ ] Dark Souls Remastered
-- [ ] Sekiro: Shadows Die Twice
+- [x] Dark Souls 2: SOTF
+- [x] Dark Souls Remastered
+- [x] Sekiro: Shadows Die Twice
+- [x] Elden Ring: Nightreign
 - [ ] Bloodborne
 
 
